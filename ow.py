@@ -69,7 +69,7 @@ async def create_ticket(interaction: discord.Interaction, ticket_type: str, cate
     )
 
     await ticket_channel.send(
-        f"{member.mention} đã mở ticket `{ticket_type.replace('-', ' ').title()}`. <@&1368845823764336681> sẽ hỗ trợ bạn."
+        f"{member.mention} đã mở ticket `{ticket_type.replace('-', ' ').title()}`. <@&1351227654782714040> sẽ hỗ trợ bạn."
     )
 
     embed = discord.Embed(
@@ -246,10 +246,10 @@ async def on_member_join(member):
         return
 
     # Thay ID bên dưới bằng ID thật của từng kênh
-    update_channel_id = 1370973547236692018  # 🚨│update
-    rule_channel_id = 1370973612286279792   # 📖│luật-dịch-vụ
-    ticket_channel_id = 1352312400686354553 # 🎫│ticket
-    price_channel_id = 1370966758495879206  # 📰│bảng-giá (ID giả, thay bằng ID thật)
+    update_channel_id = 1351223923966083152  # 🚨│update
+    rule_channel_id = 1351226270414934091   # 📖│luật-dịch-vụ
+    ticket_channel_id = 1351232807908675614 # 🎫│ticket
+    price_channel_id = 1351224397427642490  # 📰│bảng-giá (ID giả, thay bằng ID thật)
 
     embed = discord.Embed(
         description=f"Chào mừng {member.mention} đã đến với **OW STORE**. Chúng tôi hy vọng bạn sẽ hài lòng khi đến với store của chúng tôi.",
