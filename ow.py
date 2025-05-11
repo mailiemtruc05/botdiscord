@@ -291,8 +291,15 @@ async def on_command_error(ctx, error):
 
 @bot.event
 async def on_ready():
+    # Thêm view tùy chỉnh
     bot.add_view(TicketView())
+
+    # Cập nhật trạng thái bot
+    activity = discord.Activity(type=discord.ActivityType.watching, name="OW STORE -  Đa dịch vụ, giá hợp lý, hỗ trợ tận tâm 🔥")
+    await bot.change_presence(activity=activity)
+
     print(f'Bot is ready: {bot.user}')
+
 
 
 
