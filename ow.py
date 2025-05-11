@@ -136,7 +136,7 @@ async def thanhtoan(ctx, sotien: int, *, loi_nhan: str):
         account_name_encoded = account_name.replace(" ", "+")
 
         qr_url = (
-            f"https://img.vietqr.io/image/{bank_code}-{account_no}.png"
+            f"https://img.vietqr.io/image/{bank_code}-{account_no}-compact.png"
             f"?amount={sotien}&addInfo={loi_nhan_encoded}&accountName={account_name_encoded}"
         )
 
