@@ -4,6 +4,8 @@ import os
 
 from discord.ext import commands
 from discord.ui import View, Button
+from flask import Flask
+from threading import Thread
 
 intents = discord.Intents.default()
 intents.message_content = True
@@ -292,4 +294,20 @@ async def on_ready():
     bot.add_view(TicketView())
     print(f'Bot is ready: {bot.user}')
 
+
+
+app = Flask('')
+
+@app.route('/')
+def home():
+    return "Bot is alive!"
+
+def run():
+    app.run(host='0.0.0.0', port=8080)
+
+def keep_alive():
+    t = Thread(target=run)
+    t.start()
+
+keep_alive()
 bot.run(os.getenv("DISCORD_TOKEN"))
