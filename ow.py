@@ -76,8 +76,8 @@ async def create_ticket(interaction: discord.Interaction, ticket_type: str, cate
     title="Vui Lòng Chờ DEV Xíu Nhé.\nDEV Sẽ Trả Lời Nhanh Nhất Có Thể Ạ",
     color=discord.Color.blue()
     )
-    embed.set_thumbnail(url="https://cdn.discordapp.com/attachments/1351234840749670430/1351423170443477023/logo2.png?ex=6820daa8&is=681f8928&hm=b64bb634019a3f01aa99fd7bc00e00f53d7e1e7ace795815357feaa3612e17c5&")
-    embed.set_image(url="https://cdn.discordapp.com/attachments/1351234840749670430/1370931335312707604/standard_77.gif?ex=68214acd&is=681ff94d&hm=cc7c1da012d917ae93c5037b6615a45ce18bd44b29d968e626ca6c659b150629&")  # đổi link ảnh tùy bạn
+    embed.set_thumbnail(url="https://media.discordapp.net/attachments/1351234840749670430/1351423170443477023/logo2.png?ex=68222c28&is=6820daa8&hm=a2256de50600ffc0074e82e69fa2887477c9055c4b0f7e6c03fd0e4a179abb1b&=&format=webp&quality=lossless")
+    embed.set_image(url="https://media.discordapp.net/attachments/1351234840749670430/1371308366030176377/ow.gif?ex=6822a9f0&is=68215870&hm=a521cfdb679132bbf79ebe91a08a52b149a81299fa1c396eb92882f679203eb9&=")  # đổi link ảnh tùy bạn
 
     await ticket_channel.send(embed=embed, view=CloseTicketView())
 
@@ -109,8 +109,8 @@ async def sendticket(ctx):
         description="Nếu bạn cần mua hàng hoặc hỗ trợ, hãy bấm vào các nút bên dưới.\n**VUI LÒNG KHÔNG SPAM TICKET**",
         color=discord.Color.blue()
     )
-    embed.set_thumbnail(url="https://cdn.discordapp.com/attachments/1351234840749670430/1351423170443477023/logo2.png?ex=6820daa8&is=681f8928&hm=b64bb634019a3f01aa99fd7bc00e00f53d7e1e7ace795815357feaa3612e17c5&")
-    embed.set_image(url="https://cdn.discordapp.com/attachments/1351234840749670430/1370931335312707604/standard_77.gif?ex=68214acd&is=681ff94d&hm=cc7c1da012d917ae93c5037b6615a45ce18bd44b29d968e626ca6c659b150629&")  # đổi link ảnh tùy bạn
+    embed.set_thumbnail(url="https://media.discordapp.net/attachments/1351234840749670430/1351423170443477023/logo2.png?ex=68222c28&is=6820daa8&hm=a2256de50600ffc0074e82e69fa2887477c9055c4b0f7e6c03fd0e4a179abb1b&=&format=webp&quality=lossless")
+    embed.set_image(url="https://media.discordapp.net/attachments/1351234840749670430/1371308366030176377/ow.gif?ex=6822a9f0&is=68215870&hm=a521cfdb679132bbf79ebe91a08a52b149a81299fa1c396eb92882f679203eb9&=")  # đổi link ảnh tùy bạn
 
     await ctx.send(embed=embed, view=TicketView())
     await ctx.message.delete(delay=5)
@@ -231,8 +231,8 @@ async def banggia(ctx):
         inline=False
     )
 
-    embed.set_thumbnail(url="https://cdn.discordapp.com/attachments/1351234840749670430/1351423170443477023/logo2.png?ex=6820daa8&is=681f8928&hm=b64bb634019a3f01aa99fd7bc00e00f53d7e1e7ace795815357feaa3612e17c5&")
-    embed.set_image(url="https://cdn.discordapp.com/attachments/1351234840749670430/1370931335312707604/standard_77.gif?ex=68214acd&is=681ff94d&hm=cc7c1da012d917ae93c5037b6615a45ce18bd44b29d968e626ca6c659b150629&")  # đổi link ảnh tùy bạn
+    embed.set_thumbnail(url="https://media.discordapp.net/attachments/1351234840749670430/1351423170443477023/logo2.png?ex=68222c28&is=6820daa8&hm=a2256de50600ffc0074e82e69fa2887477c9055c4b0f7e6c03fd0e4a179abb1b&=&format=webp&quality=lossless")
+    embed.set_image(url="https://media.discordapp.net/attachments/1351234840749670430/1371308366030176377/ow.gif?ex=6822a9f0&is=68215870&hm=a521cfdb679132bbf79ebe91a08a52b149a81299fa1c396eb92882f679203eb9&=")  # đổi link ảnh tùy bạn
 
     await channel.send(embed=embed)
     await ctx.message.delete(delay=5)
@@ -277,8 +277,8 @@ async def on_member_join(member):
         inline=False
     )
 
-    embed.set_thumbnail(url="https://cdn.discordapp.com/attachments/1351234840749670430/1351423170443477023/logo2.png?ex=6820daa8&is=681f8928&hm=b64bb634019a3f01aa99fd7bc00e00f53d7e1e7ace795815357feaa3612e17c5&")
-    embed.set_image(url="https://cdn.discordapp.com/attachments/1351234840749670430/1370931335312707604/standard_77.gif?ex=68214acd&is=681ff94d&hm=cc7c1da012d917ae93c5037b6615a45ce18bd44b29d968e626ca6c659b150629&")  # đổi link ảnh tùy bạn
+    embed.set_thumbnail(url="https://media.discordapp.net/attachments/1351234840749670430/1351423170443477023/logo2.png?ex=68222c28&is=6820daa8&hm=a2256de50600ffc0074e82e69fa2887477c9055c4b0f7e6c03fd0e4a179abb1b&=&format=webp&quality=lossless")
+    embed.set_image(url="https://media.discordapp.net/attachments/1351234840749670430/1371308366030176377/ow.gif?ex=6822a9f0&is=68215870&hm=a521cfdb679132bbf79ebe91a08a52b149a81299fa1c396eb92882f679203eb9&=")  # đổi link ảnh tùy bạn
 
     await channel.send(embed=embed)
 
