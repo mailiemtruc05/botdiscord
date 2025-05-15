@@ -209,7 +209,7 @@ async def banggia(ctx):
     embed.add_field(
         name="Dịch vụ thiết kế discord",
         value=(
-            "• Thiết kế server discord theo yêu cầu (ví dụ: discord Gang, Store, Setup Bot theo yêu cầu...) │Price: 50k"
+            "• Thiết kế server discord theo yêu cầu (ví dụ: discord Gang, Store, Setup Bot theo yêu cầu...) │Price: 50k\n"
             "• Code bot discord theo yêu cầu (bot ticket, tạo mã qr, check người chơi của các server,....) │Price: 100k-500k"
         ),
         inline=False
