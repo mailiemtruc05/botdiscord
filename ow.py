@@ -128,6 +128,7 @@ async def close(ctx):
 @bot.command()
 @commands.has_role(DEV_ROLE_NAME)
 async def thanhtoan(ctx, sotien: int, *, loi_nhan: str):
+    await ctx.message.delete(delay=5)  # Xóa lệnh người dùng sau 5 giây
     if ctx.channel.category and ctx.channel.category.name in [CATEGORY_BUY, CATEGORY_SUPPORT]:
         bank_code = "VCB"
         account_no = "1034298524"
@@ -329,6 +330,8 @@ class GiveawayView(View):
 @bot.command()
 @commands.has_role(DEV_ROLE_NAME)
 async def giveaway(ctx, time_in_seconds: int, *, prize: str):
+    # Xóa lệnh người dùng sau 5 giây
+    await ctx.message.delete(delay=5)
     embed = discord.Embed(
         title="🎉 Giveaway Đã Bắt Đầu! 🎉",
         description=f"Phần thưởng: **{prize}**\n"
