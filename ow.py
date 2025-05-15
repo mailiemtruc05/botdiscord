@@ -314,10 +314,10 @@ class GiveawayView(View):
         lines = embed.description.splitlines()
 
         # Loại bỏ dòng cũ nếu đã có
-        lines = [line for line in lines if not line.startswith("👥 Số người tham gia:")]
+        lines = [line for line in lines if not line.startswith("Số người tham gia:")]
 
         # Thêm dòng mới hiển thị số người tham gia
-        lines.insert(2, f"👥 Số người tham gia: **{len(self.participants)}**")
+        lines.insert(2, f"Số người tham gia: **{len(self.participants)}**")
 
         embed.description = "\n".join(lines)
         await self.giveaway_message.edit(embed=embed, view=self)
