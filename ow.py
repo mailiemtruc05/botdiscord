@@ -2,6 +2,7 @@ import discord
 import asyncio
 import os
 import random
+import re
 from discord.ext import commands
 from discord.ui import View, Button
 from flask import Flask
@@ -326,27 +327,38 @@ class GiveawayView(View):
         self.clear_items()
         await self.giveaway_message.edit(view=None)
 
+def parse_time_string(time_str: str) -> int:
+    """Chuyển đổi chuỗi thời gian như 1d, 2h, 30m, 45s thành tổng số giây"""
+    time_units = {"d": 86400, "h": 3600, "m": 60, "s": 1}
+    match = re.fullmatch(r"(\d+)([dhms])", time_str.lower())
+    if not match:
+        raise commands.BadArgument("Định dạng thời gian không hợp lệ. Dùng ví dụ: `1d`, `2h`, `30m`, `45s`")
+    value, unit = match.groups()
+    return int(value) * time_units[unit]
 
 @bot.command()
 @commands.has_role(DEV_ROLE_NAME)
-async def giveaway(ctx, time_in_seconds: int, *, prize: str):
-    # Xóa lệnh người dùng sau 5 giây
+async def giveaway(ctx, time_str: str, *, prize: str):
     await ctx.message.delete(delay=5)
+
+    try:
+        time_in_seconds = parse_time_string(time_str)
+    except commands.BadArgument as e:
+        return await ctx.send(str(e))
+
     embed = discord.Embed(
         title="🎉 Giveaway Đã Bắt Đầu! 🎉",
         description=f"Phần thưởng: **{prize}**\n"
-                    f"Thời gian: {time_in_seconds} giây\n\n"
+                    f"Thời gian: {time_str}\n\n"
                     "Nhấn nút bên dưới để tham gia giveaway!",
         color=discord.Color.gold()
     )
+
     giveaway_message = await ctx.send(embed=embed, view=None)
     view = GiveawayView(giveaway_message, None)
     await giveaway_message.edit(view=view)
 
-    # Đợi thời gian giveaway
     await asyncio.sleep(time_in_seconds)
-    
-    # Kết thúc giveaway
     await view.end_giveaway()
 #------------------------------------------------------------------------------------------------------------
 
