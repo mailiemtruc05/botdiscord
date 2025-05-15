@@ -391,7 +391,7 @@ async def giveaway(ctx, time_str: str, *, prize: str):
         title="🎉 Giveaway Đã Bắt Đầu! 🎉",
         description=f"Phần thưởng: **{prize}**\n"
                     f"Kết thúc vào: <t:{end_timestamp}:F> (<t:{end_timestamp}:R>)\n"
-                    "👥 Số người tham gia: **0**\n\n"
+                    "Số người tham gia: **0**\n\n"
                     "Nhấn nút bên dưới để tham gia giveaway!",
         color=discord.Color.gold()
     )
