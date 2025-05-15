@@ -4,6 +4,7 @@ import os
 import random
 import re
 from discord.ext import commands
+from datetime import datetime, timedelta
 from discord.ui import View, Button
 from flask import Flask
 from threading import Thread
@@ -19,6 +20,9 @@ MEM_ROLE_NAME = "MEM"
 DEV_ROLE_NAME = "DEV"
 CATEGORY_BUY = "Ticket Mua Hàng"
 CATEGORY_SUPPORT = "Ticket Hỗ trợ/Bảo Hành"
+
+# Lưu giveaway đang hoạt động hoặc có thể reroll
+giveaway_views = {}
 
 class TicketView(View):
     def __init__(self):
@@ -289,7 +293,7 @@ async def on_member_join(member):
 
 #------------------------------------------------------------------------------------------------------------
 class GiveawayView(View):
-    def __init__(self, giveaway_message, end_callback):
+    def __init__(self, giveaway_message, end_callback=None):
         super().__init__(timeout=None)
         self.participants = set()
         self.giveaway_message = giveaway_message
@@ -303,32 +307,66 @@ class GiveawayView(View):
         else:
             self.participants.add(user.id)
             await interaction.response.send_message("Bạn đã tham gia giveaway!", ephemeral=True)
+            await self.update_embed()
+
+    async def update_embed(self):
+        embed = self.giveaway_message.embeds[0]
+        lines = embed.description.splitlines()
+
+        # Loại bỏ dòng cũ nếu đã có
+        lines = [line for line in lines if not line.startswith("👥 Số người tham gia:")]
+
+        # Thêm dòng mới hiển thị số người tham gia
+        lines.insert(2, f"👥 Số người tham gia: **{len(self.participants)}**")
+
+        embed.description = "\n".join(lines)
+        await self.giveaway_message.edit(embed=embed, view=self)
 
     async def end_giveaway(self):
         if self.participants:
-            winner_id = random.choice(list(self.participants))
-            winner = self.giveaway_message.guild.get_member(winner_id)
-            if winner is None:
-                winner_mention = "Người thắng (không tìm thấy trong server)"
-            else:
-                winner_mention = winner.mention
-                try:
-                    await winner.send(
-                        f"🎉 Chúc mừng bạn đã thắng giveaway: **{self.giveaway_message.embeds[0].description.splitlines()[0].split('**')[1]}** 🎉"
-                    )
-                except discord.Forbidden:
-                    # Không thể gửi DM cho người dùng
-                    pass
+            participants = list(self.participants)
+            while participants:
+                winner_id = random.choice(participants)
+                winner = self.giveaway_message.guild.get_member(winner_id)
+                if winner:
+                    # Gửi tin nhắn chúc mừng
+                    try:
+                        prize = self.giveaway_message.embeds[0].description.splitlines()[0].split("**")[1]
+                    except Exception:
+                        prize = "phần thưởng"
+                    try:
+                        await winner.send(
+                            f"🎉 Chúc mừng bạn đã thắng giveaway: **{prize}** 🎉"
+                        )
+                    except discord.Forbidden:
+                        pass
 
-            await self.giveaway_message.channel.send(f"🎉 Giveaway kết thúc! Người thắng là {winner_mention} 🎉")
+                    await self.giveaway_message.channel.send(f"🎉 Giveaway kết thúc! Người thắng là {winner.mention} 🎉")
+                    # Xóa giveaway khỏi bộ nhớ vì đã có người thắng hợp lệ
+                    giveaway_views.pop(self.giveaway_message.id, None)
+                    self.clear_items()
+                    await self.giveaway_message.edit(view=None)
+                    return
+                else:
+                    participants.remove(winner_id)
+
+            # Không tìm được người thắng hợp lệ (tất cả người tham gia không còn trong server)
+            await self.giveaway_message.channel.send(
+                f"🎉 Giveaway kết thúc nhưng không thể xác định người thắng (không ai còn trong server).\n"
+                f"👉 Bạn có thể dùng lệnh `!reroll {self.giveaway_message.id}` để quay lại từ danh sách ban đầu."
+            )
+            # **Giữ giveaway trong giveaway_views để reroll được**
+            self.clear_items()
+            await self.giveaway_message.edit(view=None)
         else:
+            # Không có người tham gia
             await self.giveaway_message.channel.send("Giveaway kết thúc nhưng không có người tham gia nào.")
-        
-        self.clear_items()
-        await self.giveaway_message.edit(view=None)
+            giveaway_views.pop(self.giveaway_message.id, None)
+            self.clear_items()
+            await self.giveaway_message.edit(view=None)
+
 
 def parse_time_string(time_str: str) -> int:
-    """Chuyển đổi chuỗi thời gian như 1d, 2h, 30m, 45s thành tổng số giây"""
     time_units = {"d": 86400, "h": 3600, "m": 60, "s": 1}
     match = re.fullmatch(r"(\d+)([dhms])", time_str.lower())
     if not match:
@@ -346,20 +384,51 @@ async def giveaway(ctx, time_str: str, *, prize: str):
     except commands.BadArgument as e:
         return await ctx.send(str(e))
 
+    end_time = datetime.utcnow() + timedelta(seconds=time_in_seconds)
+    end_timestamp = int(end_time.timestamp())
+
     embed = discord.Embed(
         title="🎉 Giveaway Đã Bắt Đầu! 🎉",
         description=f"Phần thưởng: **{prize}**\n"
-                    f"Thời gian: {time_str}\n\n"
+                    f"Kết thúc vào: <t:{end_timestamp}:F> (<t:{end_timestamp}:R>)\n"
+                    "👥 Số người tham gia: **0**\n\n"
                     "Nhấn nút bên dưới để tham gia giveaway!",
         color=discord.Color.gold()
     )
 
     giveaway_message = await ctx.send(embed=embed, view=None)
-    view = GiveawayView(giveaway_message, None)
+    view = GiveawayView(giveaway_message)
+    giveaway_views[giveaway_message.id] = view
     await giveaway_message.edit(view=view)
 
     await asyncio.sleep(time_in_seconds)
     await view.end_giveaway()
+
+@bot.command()
+@commands.has_role(DEV_ROLE_NAME)
+async def reroll(ctx, message_id: int):
+    view = giveaway_views.get(message_id)
+    if not view:
+        return await ctx.send("Không tìm thấy giveaway tương ứng hoặc đã kết thúc.")
+
+    participants = list(view.participants)
+    if not participants:
+        return await ctx.send("Không có người tham gia trong giveaway này.")
+
+    while participants:
+        winner_id = random.choice(participants)
+        winner = ctx.guild.get_member(winner_id)
+        if winner:
+            await ctx.send(f"Quay lại: Người thắng mới là {winner.mention} 🎉")
+            try:
+                await winner.send("Bạn đã được chọn lại là người thắng giveaway!")
+            except discord.Forbidden:
+                pass
+            return
+        else:
+            participants.remove(winner_id)
+
+    await ctx.send("Không thể tìm thấy người nào còn trong server để chọn lại.")
 #------------------------------------------------------------------------------------------------------------
 
 
