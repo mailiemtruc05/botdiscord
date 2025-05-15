@@ -183,7 +183,7 @@ async def banggia(ctx):
     embed.add_field(
         name="Dịch vụ Auto Fram",
         value=(
-            "• Key │Price : 10k/ngày, 60k/tuần, 100k/tháng, 300k/vv\n"
+            "• Key │Price : 20k/ngày, 100k/tuần, 150k/tháng, 350k/vv\n"
             "• Key vĩnh viễn và dùng được tất cả các loại tool mà OW STORE hiện có │Price : 1tr2\n"
             "• Viết Auto theo yêu cầu\n"
             "• Mở 🎫│ticket để biết thêm chi tiết về Auto Fram"
@@ -208,7 +208,10 @@ async def banggia(ctx):
 
     embed.add_field(
         name="Dịch vụ thiết kế discord",
-        value="• Thiết kế server discord theo yêu cầu (ví dụ: discord Gang, Store, Setup Bot theo yêu cầu...) │Price: 50k",
+        value=(
+            "• Thiết kế server discord theo yêu cầu (ví dụ: discord Gang, Store, Setup Bot theo yêu cầu...) │Price: 50k"
+            "• Code bot discord theo yêu cầu (bot ticket, tạo mã qr, check người chơi của các server,....) │Price: 100k-500k"
+        ),
         inline=False
     )
 
