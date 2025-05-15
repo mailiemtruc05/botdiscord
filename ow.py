@@ -1,7 +1,7 @@
 import discord
 import asyncio
 import os
-
+import random
 from discord.ext import commands
 from discord.ui import View, Button
 from flask import Flask
@@ -285,12 +285,73 @@ async def on_member_join(member):
 
     await channel.send(embed=embed)
 
+#------------------------------------------------------------------------------------------------------------
+class GiveawayView(View):
+    def __init__(self, giveaway_message, end_callback):
+        super().__init__(timeout=None)
+        self.participants = set()
+        self.giveaway_message = giveaway_message
+        self.end_callback = end_callback
+
+    @discord.ui.button(label="Tham gia Giveaway", style=discord.ButtonStyle.green, custom_id="giveaway_join")
+    async def join_button(self, interaction: discord.Interaction, button: Button):
+        user = interaction.user
+        if user.id in self.participants:
+            await interaction.response.send_message("Bạn đã tham gia rồi!", ephemeral=True)
+        else:
+            self.participants.add(user.id)
+            await interaction.response.send_message("Bạn đã tham gia giveaway!", ephemeral=True)
+
+    async def end_giveaway(self):
+        if self.participants:
+            winner_id = random.choice(list(self.participants))
+            winner = self.giveaway_message.guild.get_member(winner_id)
+            if winner is None:
+                winner_mention = "Người thắng (không tìm thấy trong server)"
+            else:
+                winner_mention = winner.mention
+                try:
+                    await winner.send(
+                        f"🎉 Chúc mừng bạn đã thắng giveaway: **{self.giveaway_message.embeds[0].description.splitlines()[0].split('**')[1]}** 🎉"
+                    )
+                except discord.Forbidden:
+                    # Không thể gửi DM cho người dùng
+                    pass
+
+            await self.giveaway_message.channel.send(f"🎉 Giveaway kết thúc! Người thắng là {winner_mention} 🎉")
+        else:
+            await self.giveaway_message.channel.send("Giveaway kết thúc nhưng không có người tham gia nào.")
+        
+        self.clear_items()
+        await self.giveaway_message.edit(view=None)
+
+
+@bot.command()
+@commands.has_role(DEV_ROLE_NAME)
+async def giveaway(ctx, time_in_seconds: int, *, prize: str):
+    embed = discord.Embed(
+        title="🎉 Giveaway Đã Bắt Đầu! 🎉",
+        description=f"Phần thưởng: **{prize}**\n"
+                    f"Thời gian: {time_in_seconds} giây\n\n"
+                    "Nhấn nút bên dưới để tham gia giveaway!",
+        color=discord.Color.gold()
+    )
+    giveaway_message = await ctx.send(embed=embed, view=None)
+    view = GiveawayView(giveaway_message, None)
+    await giveaway_message.edit(view=view)
+
+    # Đợi thời gian giveaway
+    await asyncio.sleep(time_in_seconds)
+    
+    # Kết thúc giveaway
+    await view.end_giveaway()
+#------------------------------------------------------------------------------------------------------------
+
 
 @bot.event
 async def on_command_error(ctx, error):
     if isinstance(error, commands.MissingRole):
         await ctx.send("Bạn không có quyền để dùng lệnh này.")
-
 
 @bot.event
 async def on_ready():
