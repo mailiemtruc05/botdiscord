@@ -428,7 +428,7 @@ async def reroll(ctx, message_id: int):
         else:
             participants.remove(winner_id)
 
-    await ctx.send("Không thể tìm thấy người nào còn trong server để chọn lại.")
+    await ctx.send("Không thể tìm thấy người nào để chọn lại.")
 #------------------------------------------------------------------------------------------------------------
 
 
