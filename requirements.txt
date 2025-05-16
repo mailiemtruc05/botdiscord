@@ -1,3 +1,17 @@
 discord.py
 asyncio
 Flask==2.3.3
+
+# Phát nhạc từ YouTube
+pytube
+yt-dlp
+
+# Phát nhạc và xử lý âm thanh
+PyNaCl
+ffmpeg-python
+
+# Cho phép tìm kiếm trên YouTube
+youtube-search-python
+
+# (Tùy chọn) Spotify support — chỉ nếu bạn định tích hợp Spotify API
+spotipy
