@@ -3,11 +3,13 @@ import asyncio
 import os
 import random
 import re
+import yt_dlp
 from discord.ext import commands
 from datetime import datetime, timedelta
 from discord.ui import View, Button
 from flask import Flask
 from threading import Thread
+from discord.ui import View, Select
 
 intents = discord.Intents.default()
 intents.message_content = True
@@ -129,30 +131,136 @@ async def close(ctx):
     else:
         await ctx.send("Lệnh này chỉ dùng trong ticket.")
 
+#-------------------------------------------------Nhạc--------------------------------------------------------------------
+
+YTDL_OPTIONS = {
+    'format': 'bestaudio/best',
+    'noplaylist': True,
+    'quiet': True,
+    'default_search': 'ytsearch',  # Nếu không phải link, tìm YouTube theo từ khóa
+    'source_address': '0.0.0.0'
+}
+
+FFMPEG_OPTIONS = {
+    'before_options': '-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5',
+    'options': '-vn'
+}
+
+ytdl = yt_dlp.YoutubeDL(YTDL_OPTIONS)
+
+class YTDLSource(discord.PCMVolumeTransformer):
+    def __init__(self, source, *, data, volume=0.5):
+        super().__init__(source, volume)
+        self.data = data
+        self.title = data.get('title')
+        self.url = data.get('url')
+
+    @classmethod
+    async def from_url(cls, url, *, loop=None, stream=False):
+        loop = loop or asyncio.get_event_loop()
+        # Lấy thông tin nhạc hoặc tìm kiếm
+        data = await loop.run_in_executor(None, lambda: ytdl.extract_info(url, download=not stream))
+        if 'entries' in data:
+            data = data['entries'][0]  # lấy kết quả đầu tiên nếu là playlist/tìm kiếm
+        filename = data['url'] if stream else ytdl.prepare_filename(data)
+        return cls(discord.FFmpegPCMAudio(filename, **FFMPEG_OPTIONS), data=data)
+
+@bot.command(name='play')
+async def play(ctx, *, search: str):
+    # Kiểm tra user có trong voice channel không
+    if not ctx.author.voice or not ctx.author.voice.channel:
+        return await ctx.send("Bạn phải ở trong voice channel để sử dụng lệnh này!")
+
+    voice_channel = ctx.author.voice.channel
+    voice_client = ctx.voice_client
+
+    # Nếu bot chưa join thì join
+    if voice_client is None:
+        voice_client = await voice_channel.connect()
+    elif voice_client.channel != voice_channel:
+        await voice_client.move_to(voice_channel)
+
+    async with ctx.typing():
+        try:
+            player = await YTDLSource.from_url(search, loop=bot.loop, stream=True)
+        except Exception as e:
+            return await ctx.send(f"Không thể phát nhạc: {str(e)}")
+
+        if voice_client.is_playing():
+            voice_client.stop()
+        voice_client.play(player, after=lambda e: print(f'Lỗi phát nhạc: {e}') if e else None)
+
+    await ctx.send(f"Đang phát: {player.title}")
 
 @bot.command()
+async def stop(ctx):
+    voice_client = ctx.voice_client
+    if voice_client and voice_client.is_playing():
+        voice_client.stop()
+        await ctx.send("Đã dừng phát nhạc.")
+    else:
+        await ctx.send("Bot không đang phát nhạc.")
+
+@bot.command()
+async def leave(ctx):
+    voice_client = ctx.voice_client
+    if voice_client:
+        await voice_client.disconnect()
+        await ctx.send("Đã rời voice channel.")
+    else:
+        await ctx.send("Bot không ở trong voice channel.")
+
+#---------------------------------------------------------------------------------------------------------------------
+
+
+#---------------------------------------------THANH TOÁN---------------------------------------------------------------
+@bot.command()
 @commands.has_role(DEV_ROLE_NAME)
-async def thanhtoan(ctx, sotien: int, *, loi_nhan: str):
-    await ctx.message.delete(delay=5)  # Xóa lệnh người dùng sau 5 giây
+async def thanhtoan(ctx, *, args: str):
+    await ctx.message.delete(delay=5)
+
     if ctx.channel.category and ctx.channel.category.name in [CATEGORY_BUY, CATEGORY_SUPPORT]:
         bank_code = "VCB"
         account_no = "1034298524"
         account_name = "MAI LIEM TRUC"
+
+        # args có thể là "1000000 Nội dung" hoặc "Nội dung"
+        parts = args.split(' ', 1)  # tách 1 lần, phần đầu có thể là số tiền
+
+        if len(parts) == 0:
+            return await ctx.send("❌ Vui lòng nhập nội dung hoặc số tiền và nội dung.")
+
+        try:
+            sotien = int(parts[0].replace(',', ''))  # cố gắng parse số tiền đầu tiên
+            loi_nhan = parts[1] if len(parts) > 1 else ""
+            has_amount = True
+        except ValueError:
+            sotien = None
+            loi_nhan = args
+            has_amount = False
+
         loi_nhan_encoded = loi_nhan.replace(" ", "+")
         account_name_encoded = account_name.replace(" ", "+")
 
-        qr_url = (
-            f"https://img.vietqr.io/image/{bank_code}-{account_no}-compact.png"
-            f"?amount={sotien}&addInfo={loi_nhan_encoded}&accountName={account_name_encoded}"
-        )
+        if has_amount:
+            qr_url = (
+                f"https://img.vietqr.io/image/{bank_code}-{account_no}-compact.png"
+                f"?amount={sotien}&addInfo={loi_nhan_encoded}&accountName={account_name_encoded}"
+            )
+            note = f"Số Tiền:\n{sotien:,} VND\n\n"
+        else:
+            qr_url = (
+                f"https://img.vietqr.io/image/{bank_code}-{account_no}-compact.png"
+                f"?addInfo={loi_nhan_encoded}&accountName={account_name_encoded}"
+            )
+            note = "Khách hàng tự nhập số tiền khi chuyển.\n\n"
 
-        # Dạng mô phỏng khung input đẹp mắt
         info_block = (
             f"```ini\n"
             f"Ngân hàng:\nVietcombank\n\n"
             f"Số Tài Khoản:\n{account_no}\n\n"
             f"Chủ Tài Khoản:\n{account_name}\n\n"
-            f"Số Tiền:\n{sotien:,} VND\n\n"
+            f"{note}"
             f"Nội dung chuyển:\n{loi_nhan}\n\n"
             f"Ghi chú:\nKhách hàng vui lòng gửi bill vào ticket.\n"
             f"```"
@@ -163,90 +271,225 @@ async def thanhtoan(ctx, sotien: int, *, loi_nhan: str):
             description=info_block,
             color=discord.Color.green()
         )
-
         embed.set_image(url=qr_url)
         embed.set_footer(text="Mọi thắc mắc liên hệ OW.")
 
         await ctx.send(embed=embed)
+
     else:
         await ctx.send("Lệnh này chỉ dùng trong kênh ticket.")
+#------------------------------------------------------------------------------------------------------------
+
+#-------------------------------------------------Thêm/Xóa User Ticket--------------------------------------------------------------------
+@bot.command(name="adduser")
+@commands.has_role(DEV_ROLE_NAME)
+async def add_user_to_ticket(ctx, member: discord.Member):
+    # Kiểm tra xem có phải đang trong kênh ticket không
+    if ctx.channel.category and ctx.channel.category.name in [CATEGORY_BUY, CATEGORY_SUPPORT]:
+        # Cập nhật permission cho user mới
+        await ctx.channel.set_permissions(member, view_channel=True, send_messages=True)
+        await ctx.send(f"✅ Đã thêm {member.mention} vào ticket.")
+    else:
+        await ctx.send("❌ Lệnh này chỉ dùng trong kênh ticket.")
+
+    await ctx.message.delete(delay=5)
+
+
+@bot.command(name="removeuser")
+@commands.has_role(DEV_ROLE_NAME)
+async def remove_user_from_ticket(ctx, member: discord.Member):
+    if ctx.channel.category and ctx.channel.category.name in [CATEGORY_BUY, CATEGORY_SUPPORT]:
+        await ctx.channel.set_permissions(member, overwrite=None)
+        await ctx.send(f"🚫 Đã xoá {member.mention} khỏi ticket.")
+    else:
+        await ctx.send("❌ Lệnh này chỉ dùng trong kênh ticket.")
+
+    await ctx.message.delete(delay=5)
+#---------------------------------------------------------------------------------------------------------------------
+
+#-------------------------------------------------Clear Kênh--------------------------------------------------------------------
+@bot.command(name="clearallhard")
+@commands.has_role(DEV_ROLE_NAME)
+async def clear_all_hard(ctx):
+    channel = ctx.channel
+
+    # Xóa lệnh gọi trước
+    try:
+        await ctx.message.delete()
+    except:
+        pass
+
+    # Clone và xóa kênh
+    new_channel = await channel.clone(reason="Clear all messages")
+    await channel.delete()
+
+    # Gửi thông báo và xóa nó sau 5 giây
+    msg = await new_channel.send("✅ Tất cả tin nhắn trong kênh đã được xóa (kênh đã được tạo lại).")
+    await asyncio.sleep(5)
+    await msg.delete()
+
+
+@bot.command(name="clear")
+@commands.has_role(DEV_ROLE_NAME)
+async def clear_messages(ctx, amount: int):
+    # Xóa cả tin nhắn gọi lệnh => +1
+    deleted = await ctx.channel.purge(limit=amount + 1)
+
+    confirm_msg = await ctx.send(f"🧹 Đã xóa {len(deleted) - 1} tin nhắn.")
+    await asyncio.sleep(5)
+    await confirm_msg.delete()
+
+    try:
+        await ctx.message.delete(delay=5)
+    except:
+        pass
+
+#---------------------------------------------------------------------------------------------------------------------
+
+#--------------------------------------------BẢNG GIÁ----------------------------------------------------------------
+# BẢNG GIÁ TỪNG DỊCH VỤ
+product_data = {
+    "Auto Fram": 
+    (
+    "**🚀 DỊCH VỤ AUTO FRAM – Nhanh, Mượt, Hiệu Quả**\n"
+    "• Key │15k/ngày | 90k/tuần | 160k/tháng | 300k/vv\n"
+    "• Key vĩnh viễn (full quyền tất cả tool OW STORE) │1tr2\n"
+    "• Nhận viết Auto theo yêu cầu – cá nhân hóa 100%"
+    ),
+
+    "Cày thuê GTA5VN": 
+    (
+    "**🎮 CÀY THUÊ GTA5VN – Lên Level Không Cần Cày**\n"
+    "• Cày theo yêu cầu riêng\n"
+    "• SV2 từ LV0 ➜ LV25 │Chỉ 90k"
+    ),
+
+    "Thiết kế đồ họa": 
+    (
+    "**🎨 THIẾT KẾ ĐỒ HỌA – Đẹp Mắt, Đúng Chất Bạn**\n"
+    "• Nhận vẽ Logo, Banner, Poster, Social Post theo yêu cầu"
+    ),
+
+    "Thiết kế Discord": 
+    (
+    "**🤖 DISCORD SETUP & CODE BOT TÙY CHỈNH**\n"
+    "• Thiết kế server chuyên nghiệp │50k\n"
+    "• Code bot theo yêu cầu (ticket, QR, thống kê...) │100k – 500k"
+    ),
+
+    "Word/Excel/PowerPoint/Canva": 
+    (
+    "**📄 VĂN PHÒNG – THIẾT KẾ TRÌNH CHIẾU – CANVA**\n"
+    "• PowerPoint/Canva │8k/slide (giảm nếu nhiều)\n"
+    "• Word & Excel: tùy nội dung & yêu cầu"
+    ),
+
+    "Cài phần mềm": 
+    (
+    "**🧩 CÀI PHẦN MỀM BẢN QUYỀN – SIÊU ƯU ĐÃI**\n"
+    "• Adobe AI + Photoshop │150k trọn gói\n"
+    "• Microsoft Office Full Bộ │150k cài trọn đời"
+    ),
+
+}
+
+
+class BangGiaDropdown(discord.ui.Select):
+    def __init__(self):
+        options = [
+            discord.SelectOption(label=label, description=f"Xem bảng giá {label}")
+            for label in product_data.keys()
+        ]
+        super().__init__(
+            placeholder="Chọn một dịch vụ...",
+            min_values=1,
+            max_values=1,
+            options=options
+        )
+
+    async def callback(self, interaction: discord.Interaction):
+        member = interaction.user
+        has_role = any(role.name == MEM_ROLE_NAME for role in member.roles)
+
+        if not has_role:
+            await interaction.response.send_message(
+                "❌ Bạn cần có role MEM để sử dụng tính năng này.", ephemeral=True
+            )
+            return
+
+        selected = self.values[0]
+        content = product_data[selected]
+        embed = discord.Embed(
+            title=f"Bảng giá: {selected}",
+            description=content,
+            color=discord.Color.green()
+        )
+        embed.set_image(url="https://media.discordapp.net/attachments/1351234840749670430/1371308366030176377/ow.gif")
+        await interaction.response.send_message(embed=embed, ephemeral=True)
+
+
+class BangGiaView(discord.ui.View):
+    def __init__(self):
+        super().__init__(timeout=None)
+        self.add_item(BangGiaDropdown())
 
 
 @bot.command()
 @commands.has_role(DEV_ROLE_NAME)
 async def banggia(ctx):
-    channel = discord.utils.get(ctx.guild.text_channels, name="📰│bảng-giá")
+    # Tìm kênh bảng giá theo tên
+    channel = discord.utils.get(ctx.guild.channels, name="📰│bảng-giá")
     if channel is None:
-        await ctx.send("Không tìm thấy kênh 📰│bảng-giá.")
+        await ctx.send("Không tìm thấy kênh bảng giá 📰│bảng-giá!")
         return
 
     embed = discord.Embed(
-        title="OW STORE",
-        description="**BẢNG GIÁ OW STORE**",
-        color=discord.Color.blue()
+        title="🛒 Menu OW STORE – Xem Là Mê, Mua Là Phê",
+        description="Hãy chọn dịch vụ bạn quan tâm bên dưới để xem chi tiết.\nNhấn <#1352312400686354553> để được tư vấn nhanh chóng từ đội ngũ OW STORE.",
+        color=discord.Color.purple()
     )
+    embed.set_image(url="https://media.discordapp.net/attachments/1351234840749670430/1371308366030176377/ow.gif")
+    embed.set_footer(text="DEV BY OW")
 
-    embed.add_field(
-        name="Dịch vụ Auto Fram",
-        value=(
-            "• Key │Price : 15k/ngày, 90k/tuần, 160k/tháng, 300k/vv\n"
-            "• Key vĩnh viễn và dùng được tất cả các loại tool mà OW STORE hiện có │Price : 1tr2\n"
-            "• Viết Auto theo yêu cầu\n"
-            "• Mở 🎫│ticket để biết thêm chi tiết về Auto Fram"
-        ),
-        inline=False
-    )
+    await channel.send(embed=embed, view=BangGiaView())  # Gửi embed vào kênh bảng giá
+    await ctx.message.delete(delay=5)  # Xóa lệnh người dùng sau 5 giây
 
-    embed.add_field(
-        name="Dịch vụ cày thuê LV GTA5VN",
-        value=(
-            "• Theo yêu cầu\n"
-            "• SV2 từ LV0 -> LV25 │Price : 90k"
-        ),
-        inline=False
-    )
 
-    embed.add_field(
-        name="Dịch vụ thiết kế đồ họa",
-        value="• Vẽ Logo, Banner, Poster, Social Post theo nhu cầu",
-        inline=False
-    )
+@bot.command()
+@commands.has_role(DEV_ROLE_NAME)
+async def bg(ctx, *, service: str = None):
+    # Kiểm tra xem lệnh có được gọi trong kênh thuộc category ticket hay không
+    if not (ctx.channel.category and ctx.channel.category.name in [CATEGORY_BUY, CATEGORY_SUPPORT]):
+        await ctx.send("Lệnh này chỉ được sử dụng trong kênh ticket.")
+        return
 
-    embed.add_field(
-        name="Dịch vụ thiết kế discord",
-        value=(
-            "• Thiết kế server discord theo yêu cầu (ví dụ: discord Gang, Store, Setup Bot theo yêu cầu...) │Price: 50k\n"
-            "• Code bot discord theo yêu cầu (bot ticket, tạo mã qr, check người chơi của các server,....) │Price: 100k-500k"
-        ),
-        inline=False
-    )
+    if not service:
+        await ctx.send("Vui lòng nhập tên dịch vụ cần xem bảng giá. Ví dụ: `!bg autofram`")
+        return
 
-    embed.add_field(
-        name="Dịch vụ làm Excel, Word, PowerPoint, Canva",
-        value=(
-            "• PowerPoint, Canva │Price: 8k/slide (càng nhiều giá càng tốt)\n"
-            "• Word: Tùy theo yêu cầu\n"
-            "• Excel: Tùy theo yêu cầu"
-        ),
-        inline=False
-    )
+    service_lower = service.lower()
 
-    embed.add_field(
-        name="Dịch vụ cài các phần mềm của ADOBE và MICROSOFT",
-        value=(
-            "• Combot Adobe Illustrator và Adobe Photoshop │Price : 150k\n"
-            "• Trọn bộ Microsoft Office │Price : 150k"
-        ),
-        inline=False
-    )
+    matched_key = None
+    for key in product_data.keys():
+        if service_lower in key.lower():
+            matched_key = key
+            break
 
-    embed.set_thumbnail(url="https://media.discordapp.net/attachments/1351234840749670430/1351423170443477023/logo2.png?ex=68222c28&is=6820daa8&hm=a2256de50600ffc0074e82e69fa2887477c9055c4b0f7e6c03fd0e4a179abb1b&=&format=webp&quality=lossless")
-    embed.set_image(url="https://media.discordapp.net/attachments/1351234840749670430/1371308366030176377/ow.gif?ex=6822a9f0&is=68215870&hm=a521cfdb679132bbf79ebe91a08a52b149a81299fa1c396eb92882f679203eb9&=")  # đổi link ảnh tùy bạn
-
-    await channel.send(embed=embed)
+    if matched_key:
+        embed = discord.Embed(
+            title=f"Bảng Giá: {matched_key}",
+            description=product_data[matched_key],
+            color=discord.Color.green()
+        )
+        embed.set_image(url="https://media.discordapp.net/attachments/1351234840749670430/1371308366030176377/ow.gif")
+        await ctx.send(embed=embed)
+    else:
+        await ctx.send(f"Không tìm thấy dịch vụ phù hợp với '{service}'. Vui lòng thử lại.")
+    
     await ctx.message.delete(delay=5)
+#------------------------------------------------------------------------------------------------------------
 
-
+#--------------------------------------------------CHÀO MỪNG----------------------------------------------------------
 @bot.event
 async def on_member_join(member):
     # Tìm kênh chào mừng theo tên
@@ -290,8 +533,10 @@ async def on_member_join(member):
     embed.set_image(url="https://media.discordapp.net/attachments/1351234840749670430/1371308366030176377/ow.gif?ex=6822a9f0&is=68215870&hm=a521cfdb679132bbf79ebe91a08a52b149a81299fa1c396eb92882f679203eb9&=")  # đổi link ảnh tùy bạn
 
     await channel.send(embed=embed)
-
 #------------------------------------------------------------------------------------------------------------
+
+
+#-----------------------------------------------GIVEAWAY-------------------------------------------------------------
 class GiveawayView(View):
     def __init__(self, giveaway_message, end_callback=None):
         super().__init__(timeout=None)
