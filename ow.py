@@ -3,7 +3,6 @@ import asyncio
 import os
 import random
 import re
-import yt_dlp
 from discord.ext import commands
 from datetime import datetime, timedelta
 from discord.ui import View, Button
@@ -131,88 +130,35 @@ async def close(ctx):
     else:
         await ctx.send("Lệnh này chỉ dùng trong ticket.")
 
-#-------------------------------------------------Nhạc--------------------------------------------------------------------
+#-------------------------------------------------My Help-----------------------------------------------------------
+@bot.command(name="myhelp")
+@commands.has_role(DEV_ROLE_NAME)
+async def help_command(ctx):
+    # Xóa lệnh gọi !help sau 5 giây
+    await ctx.message.delete(delay=5)
+    
+    embed = discord.Embed(
+        title="📜 Các lệnh hiện có:",
+        color=discord.Color.blue()
+    )
+    
+    embed.add_field(name="!myhelp", value="Hiện danh sách các lệnh của bot OW Support (Admin)", inline=False)
+    embed.add_field(name="!banggia", value="Gửi bảng giá vào kênh Bảng Giá (Admin)", inline=False)
+    embed.add_field(name="!bg <tên dịch vụ>", value="Gửi các bản giá riêng lẻ trong ticket (Admin)", inline=False)
+    embed.add_field(name="!giveaway <thời gian> <phần thưởng>", value="Tạo giveaway (Admin)", inline=False)
+    embed.add_field(name="!thanhtoan <số tiền> <nội dung>", value="Tạo mã QR theo nội dung, tiền (Admin)", inline=False)
+    embed.add_field(name="!sendticket", value="Gửi ticket vào kênh (Admin)", inline=False)
+    embed.add_field(name="!adduser @user", value="Thêm người vào ticket (Admin)", inline=False)
+    embed.add_field(name="!removeuser @user", value="Xóa người ra khỏi ticket (Admin)", inline=False)
+    embed.add_field(name="!clear <số lượng>", value="Xóa tin nhắn theo số lượng (Admin)", inline=False)
+    embed.add_field(name="!clearallhard", value="Xóa sạch kênh (Admin)", inline=False)
+    
+    # Thêm ảnh vào embed (thay link ảnh thành của bạn)
+    embed.set_image(url="https://media.discordapp.net/attachments/1351234840749670430/1371308366030176377/ow.gif")
+    
+    await ctx.send(embed=embed)
 
-YTDL_OPTIONS = {
-    'format': 'bestaudio[ext=m4a]/bestaudio/best',
-    'noplaylist': True,
-    'quiet': True,
-    'default_search': 'ytsearch',
-    'source_address': '0.0.0.0'
-}
-
-FFMPEG_OPTIONS = {
-    'before_options': '-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5',
-    'options': '-vn'
-}
-
-ytdl = yt_dlp.YoutubeDL(YTDL_OPTIONS)
-
-class YTDLSource(discord.PCMVolumeTransformer):
-    def __init__(self, source, *, data, volume=0.5):
-        super().__init__(source, volume)
-        self.data = data
-        self.title = data.get('title')
-        self.url = data.get('url')
-
-    @classmethod
-    async def from_url(cls, url, *, loop=None, stream=True):
-        loop = loop or asyncio.get_event_loop()
-        data = await loop.run_in_executor(None, lambda: ytdl.extract_info(url, download=not stream))
-
-        if 'entries' in data:
-            data = data['entries'][0]
-
-        audio_url = data['url']
-        return cls(discord.FFmpegPCMAudio(audio_url, **FFMPEG_OPTIONS), data=data)
-
-@bot.command(name='play')
-async def play(ctx, *, search: str):
-    if not ctx.author.voice or not ctx.author.voice.channel:
-        return await ctx.send("Bạn phải ở trong voice channel để sử dụng lệnh này!")
-
-    voice_channel = ctx.author.voice.channel
-    voice_client = ctx.voice_client
-
-    if voice_client is None:
-        voice_client = await voice_channel.connect()
-    elif voice_client.channel != voice_channel:
-        await voice_client.move_to(voice_channel)
-
-    async with ctx.typing():
-        try:
-            player = await YTDLSource.from_url(search, loop=bot.loop, stream=True)
-        except Exception as e:
-            await ctx.send("❌ Không thể phát nhạc. Vui lòng kiểm tra link hoặc từ khóa.")
-            print(f"YTDL Error: {str(e)}")
-            return
-
-        if voice_client.is_playing():
-            voice_client.stop()
-        voice_client.play(player, after=lambda e: print(f'Lỗi phát nhạc: {e}') if e else None)
-
-    await ctx.send(f"🎶 Đang phát: **{player.title}**")
-
-@bot.command()
-async def stop(ctx):
-    voice_client = ctx.voice_client
-    if voice_client and voice_client.is_playing():
-        voice_client.stop()
-        await ctx.send("Đã dừng phát nhạc.")
-    else:
-        await ctx.send("Bot không đang phát nhạc.")
-
-@bot.command()
-async def leave(ctx):
-    voice_client = ctx.voice_client
-    if voice_client:
-        await voice_client.disconnect()
-        await ctx.send("Đã rời voice channel.")
-    else:
-        await ctx.send("Bot không ở trong voice channel.")
-
-#---------------------------------------------------------------------------------------------------------------------
-
+#------------------------------------------------------------------------------------------------------------
 
 #---------------------------------------------THANH TOÁN---------------------------------------------------------------
 @bot.command()
