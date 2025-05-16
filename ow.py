@@ -48,7 +48,7 @@ async def create_ticket(interaction: discord.Interaction, ticket_type: str, cate
 
     # Kiểm tra xem đã có ticket chưa
     for channel in guild.text_channels:
-        if (channel.name.startswith("mua-hang") or channel.name.startswith("ho-tro")) and channel.topic == f"user:{member.id}":
+        if (channel.name.startswith("🎟┃mua-hang") or channel.name.startswith("🎟┃ho-tro")) and channel.topic == f"user:{member.id}":
             return await interaction.response.send_message("Bạn đã có một ticket đang mở.", ephemeral=True)
 
     # Tạo category nếu chưa có
