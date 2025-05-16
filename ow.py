@@ -137,7 +137,7 @@ YTDL_OPTIONS = {
     'format': 'bestaudio/best',
     'noplaylist': True,
     'quiet': True,
-    'default_search': 'ytsearch',  # Nếu không phải link, tìm YouTube theo từ khóa
+    'default_search': 'ytsearch',
     'source_address': '0.0.0.0'
 }
 
@@ -156,25 +156,22 @@ class YTDLSource(discord.PCMVolumeTransformer):
         self.url = data.get('url')
 
     @classmethod
-    async def from_url(cls, url, *, loop=None, stream=False):
+    async def from_url(cls, url, *, loop=None, stream=True):
         loop = loop or asyncio.get_event_loop()
-        # Lấy thông tin nhạc hoặc tìm kiếm
         data = await loop.run_in_executor(None, lambda: ytdl.extract_info(url, download=not stream))
         if 'entries' in data:
-            data = data['entries'][0]  # lấy kết quả đầu tiên nếu là playlist/tìm kiếm
+            data = data['entries'][0]
         filename = data['url'] if stream else ytdl.prepare_filename(data)
         return cls(discord.FFmpegPCMAudio(filename, **FFMPEG_OPTIONS), data=data)
 
 @bot.command(name='play')
 async def play(ctx, *, search: str):
-    # Kiểm tra user có trong voice channel không
     if not ctx.author.voice or not ctx.author.voice.channel:
-        return await ctx.send("Bạn phải ở trong voice channel để sử dụng lệnh này!")
+        return await ctx.send("❌ Bạn phải ở trong voice channel để sử dụng lệnh này!")
 
     voice_channel = ctx.author.voice.channel
     voice_client = ctx.voice_client
 
-    # Nếu bot chưa join thì join
     if voice_client is None:
         voice_client = await voice_channel.connect()
     elif voice_client.channel != voice_channel:
@@ -184,31 +181,44 @@ async def play(ctx, *, search: str):
         try:
             player = await YTDLSource.from_url(search, loop=bot.loop, stream=True)
         except Exception as e:
-            return await ctx.send(f"Không thể phát nhạc: {str(e)}")
+            print(f"Lỗi yt-dlp: {e}")
+            return await ctx.send("❌ Không thể phát nhạc. Vui lòng kiểm tra link hoặc từ khóa.")
 
         if voice_client.is_playing():
             voice_client.stop()
-        voice_client.play(player, after=lambda e: print(f'Lỗi phát nhạc: {e}') if e else None)
 
-    await ctx.send(f"Đang phát: {player.title}")
+        voice_client.play(player, after=lambda e: print(f"Lỗi phát nhạc: {e}") if e else None)
+
+    await ctx.send(f"🎶 Đang phát: **{player.title}**")
 
 @bot.command()
 async def stop(ctx):
     voice_client = ctx.voice_client
     if voice_client and voice_client.is_playing():
         voice_client.stop()
-        await ctx.send("Đã dừng phát nhạc.")
+        await ctx.send("⏹️ Đã dừng phát nhạc.")
     else:
-        await ctx.send("Bot không đang phát nhạc.")
+        await ctx.send("❌ Không có nhạc đang phát.")
 
 @bot.command()
 async def leave(ctx):
     voice_client = ctx.voice_client
     if voice_client:
         await voice_client.disconnect()
-        await ctx.send("Đã rời voice channel.")
+        await ctx.send("👋 Bot đã rời voice channel.")
     else:
-        await ctx.send("Bot không ở trong voice channel.")
+        await ctx.send("❌ Bot không ở trong voice channel.")
+
+# Tự rời voice nếu không còn người
+@bot.event
+async def on_voice_state_update(member, before, after):
+    if member.bot:
+        return
+    voice = discord.utils.get(bot.voice_clients, guild=member.guild)
+    if voice and len(voice.channel.members) == 1:
+        await asyncio.sleep(30)
+        if len(voice.channel.members) == 1:
+            await voice.disconnect()
 
 #---------------------------------------------------------------------------------------------------------------------
 
