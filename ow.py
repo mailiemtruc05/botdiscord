@@ -148,6 +148,7 @@ async def help_command(ctx):
     embed.add_field(name="!giveaway <thời gian> <phần thưởng>", value="Tạo giveaway (Admin)", inline=False)
     embed.add_field(name="!thanhtoan <số tiền> <nội dung>", value="Tạo mã QR theo nội dung, tiền (Admin)", inline=False)
     embed.add_field(name="!sendticket", value="Gửi ticket vào kênh (Admin)", inline=False)
+    embed.add_field(name="!close", value="Đóng ticket ngay lập tức (Admin)", inline=False)
     embed.add_field(name="!adduser @user", value="Thêm người vào ticket (Admin)", inline=False)
     embed.add_field(name="!removeuser @user", value="Xóa người ra khỏi ticket (Admin)", inline=False)
     embed.add_field(name="!clear <số lượng>", value="Xóa tin nhắn theo số lượng (Admin)", inline=False)
