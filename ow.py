@@ -393,7 +393,7 @@ async def banggia(ctx):
 
     embed = discord.Embed(
         title="🛒 Menu OW STORE – Xem Là Mê, Mua Là Phê",
-        description="Hãy chọn dịch vụ bạn quan tâm bên dưới để xem chi tiết.\nNhấn <#1352312400686354553> để được tư vấn nhanh chóng từ đội ngũ OW STORE.",
+        description="Hãy chọn dịch vụ bạn quan tâm bên dưới để xem chi tiết.\nNhấn <#1351232807908675614> để được tư vấn nhanh chóng từ đội ngũ OW STORE.",
         color=discord.Color.purple()
     )
     embed.set_image(url="https://media.discordapp.net/attachments/1351234840749670430/1371308366030176377/ow.gif")
