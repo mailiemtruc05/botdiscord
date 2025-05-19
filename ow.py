@@ -9,13 +9,14 @@ from discord.ui import View, Button
 from flask import Flask
 from threading import Thread
 from discord.ui import View, Select
+from datetime import datetime, timedelta, timezone
 
 intents = discord.Intents.default()
 intents.message_content = True
 intents.guilds = True
 intents.members = True
 
-bot = commands.Bot(command_prefix="!", intents=intents)
+bot = commands.Bot(command_prefix="ow!", intents=intents)
 
 MEM_ROLE_NAME = "MEM"
 DEV_ROLE_NAME = "DEV"
@@ -23,7 +24,9 @@ CATEGORY_BUY = "Ticket Mua Hàng"
 CATEGORY_SUPPORT = "Ticket Hỗ trợ/Bảo Hành"
 
 # Lưu giveaway đang hoạt động hoặc có thể reroll
-giveaway_views = {}
+giveaway_views = {}          # Các giveaway đang diễn ra
+ended_giveaways = {}         # Các giveaway đã kết thúc
+VN_TZ = timezone(timedelta(hours=7))
 
 class TicketView(View):
     def __init__(self):
@@ -142,17 +145,19 @@ async def help_command(ctx):
         color=discord.Color.blue()
     )
     
-    embed.add_field(name="!myhelp", value="Hiện danh sách các lệnh của bot OW Support (Admin)", inline=False)
-    embed.add_field(name="!banggia", value="Gửi bảng giá vào kênh Bảng Giá (Admin)", inline=False)
-    embed.add_field(name="!bg <tên dịch vụ>", value="Gửi các bản giá riêng lẻ trong ticket (Admin)", inline=False)
-    embed.add_field(name="!giveaway <thời gian> <phần thưởng>", value="Tạo giveaway (Admin)", inline=False)
-    embed.add_field(name="!thanhtoan <số tiền> <nội dung>", value="Tạo mã QR theo nội dung, tiền (Admin)", inline=False)
-    embed.add_field(name="!sendticket", value="Gửi ticket vào kênh (Admin)", inline=False)
-    embed.add_field(name="!close", value="Đóng ticket ngay lập tức (Admin)", inline=False)
-    embed.add_field(name="!adduser @user", value="Thêm người vào ticket (Admin)", inline=False)
-    embed.add_field(name="!removeuser @user", value="Xóa người ra khỏi ticket (Admin)", inline=False)
-    embed.add_field(name="!clear <số lượng>", value="Xóa tin nhắn theo số lượng (Admin)", inline=False)
-    embed.add_field(name="!clearallhard", value="Xóa sạch kênh (Admin)", inline=False)
+    embed.add_field(name="ow!myhelp", value="Hiện danh sách các lệnh của bot OW Support (Admin)", inline=False)
+    embed.add_field(name="ow!banggia", value="Gửi bảng giá vào kênh Bảng Giá (Admin)", inline=False)
+    embed.add_field(name="ow!bg <tên dịch vụ>", value="Gửi các bản giá riêng lẻ trong ticket (Admin)", inline=False)
+    embed.add_field(name="ow!giveaway <thời gian> <phần thưởng>", value="Tạo giveaway (Admin)", inline=False)
+    embed.add_field(name="ow!list_giveaways", value="Xem danh sách giveaway (Admin)", inline=False)
+    embed.add_field(name="ow!endgiveaway <message_id>", value="Kết thúc giveaway ngay lập tức (Admin)", inline=False)
+    embed.add_field(name="ow!reroll <message_id>", value="Random lại người trúng thưởng (Admin)", inline=False)
+    embed.add_field(name="ow!thanhtoan <số tiền> <nội dung>", value="Tạo mã QR theo nội dung, tiền (Admin)", inline=False)
+    embed.add_field(name="ow!sendticket", value="Gửi ticket vào kênh (Admin)", inline=False)
+    embed.add_field(name="ow!adduser @user", value="Thêm người vào ticket (Admin)", inline=False)
+    embed.add_field(name="ow!removeuser @user", value="Xóa người ra khỏi ticket (Admin)", inline=False)
+    embed.add_field(name="ow!clear <số lượng>", value="Xóa tin nhắn theo số lượng (Admin)", inline=False)
+    embed.add_field(name="ow!clearallhard", value="Xóa sạch kênh (Admin)", inline=False)
     
     # Thêm ảnh vào embed (thay link ảnh thành của bạn)
     embed.set_image(url="https://media.discordapp.net/attachments/1351234840749670430/1371308366030176377/ow.gif")
@@ -539,6 +544,7 @@ class GiveawayView(View):
                     giveaway_views.pop(self.giveaway_message.id, None)
                     self.clear_items()
                     await self.giveaway_message.edit(view=None)
+                    ended_giveaways[self.giveaway_message.id] = self
                     return
                 else:
                     participants.remove(winner_id)
@@ -546,17 +552,20 @@ class GiveawayView(View):
             # Không tìm được người thắng hợp lệ (tất cả người tham gia không còn trong server)
             await self.giveaway_message.channel.send(
                 f"🎉 Giveaway kết thúc nhưng không thể xác định người thắng (không ai còn trong server).\n"
-                f"👉 Bạn có thể dùng lệnh `!reroll {self.giveaway_message.id}` để quay lại từ danh sách ban đầu."
+                f"👉 Bạn có thể dùng lệnh `ow!reroll {self.giveaway_message.id}` để quay lại từ danh sách ban đầu."
             )
             # **Giữ giveaway trong giveaway_views để reroll được**
             self.clear_items()
             await self.giveaway_message.edit(view=None)
+            ended_giveaways[self.giveaway_message.id] = self
         else:
             # Không có người tham gia
             await self.giveaway_message.channel.send("Giveaway kết thúc nhưng không có người tham gia nào.")
             giveaway_views.pop(self.giveaway_message.id, None)
             self.clear_items()
             await self.giveaway_message.edit(view=None)
+            ended_giveaways[self.giveaway_message.id] = self
+
 
 
 def parse_time_string(time_str: str) -> int:
@@ -577,7 +586,7 @@ async def giveaway(ctx, time_str: str, *, prize: str):
     except commands.BadArgument as e:
         return await ctx.send(str(e))
 
-    end_time = datetime.utcnow() + timedelta(seconds=time_in_seconds)
+    end_time = datetime.now(VN_TZ) + timedelta(seconds=time_in_seconds)
     end_timestamp = int(end_time.timestamp())
 
     embed = discord.Embed(
@@ -600,6 +609,7 @@ async def giveaway(ctx, time_str: str, *, prize: str):
 @bot.command()
 @commands.has_role(DEV_ROLE_NAME)
 async def reroll(ctx, message_id: int):
+    await ctx.message.delete(delay=5)
     view = giveaway_views.get(message_id)
     if not view:
         return await ctx.send("Không tìm thấy giveaway tương ứng hoặc đã kết thúc.")
@@ -622,6 +632,41 @@ async def reroll(ctx, message_id: int):
             participants.remove(winner_id)
 
     await ctx.send("Không thể tìm thấy người nào để chọn lại.")
+
+
+@bot.command(name="list_giveaways")
+@commands.has_role(DEV_ROLE_NAME)
+async def list_giveaways(ctx):
+    await ctx.message.delete(delay=5)
+    active = []
+    for view in giveaway_views.values():
+        embed = view.giveaway_message.embeds[0]
+        prize = embed.description.splitlines()[0].split("**")[1]
+        end_line = [line for line in embed.description.splitlines() if "Kết thúc vào" in line][0]
+        active.append(f"- `{view.giveaway_message.id}` | 🎁 {prize} | {end_line}")
+
+    ended = []
+    for msg_id, view in ended_giveaways.items():
+        embed = view.giveaway_message.embeds[0]
+        prize = embed.description.splitlines()[0].split("**")[1]
+        ended.append(f"- `{msg_id}` | 🎁 {prize}")
+
+    embed = discord.Embed(title="📋 Danh sách Giveaway", color=discord.Color.blurple())
+    embed.add_field(name="🎯 Đang diễn ra", value="\n".join(active) or "Không có", inline=False)
+    embed.add_field(name="✅ Đã kết thúc", value="\n".join(ended) or "Không có", inline=False)
+    await ctx.send(embed=embed)
+
+
+@bot.command(name="endgiveaway")
+@commands.has_role(DEV_ROLE_NAME)
+async def end_giveaway_now(ctx, message_id: int):
+    await ctx.message.delete(delay=5)
+    view = giveaway_views.get(message_id)
+    if not view:
+        return await ctx.send("Không tìm thấy giveaway đang diễn ra với ID này.")
+
+    await ctx.send(f"⏹️ Kết thúc giveaway `{message_id}` ngay lập tức.")
+    await view.end_giveaway()
 #------------------------------------------------------------------------------------------------------------
 
 
@@ -636,7 +681,7 @@ async def on_ready():
     bot.add_view(TicketView())
 
     # Cập nhật trạng thái bot
-    activity = discord.Activity(type=discord.ActivityType.watching, name="OW STORE -  Đa dịch vụ, giá hợp lý, hỗ trợ tận tâm 🔥")
+    activity = discord.Activity(type=discord.ActivityType.watching, name="OW STORE - Xem Là Mê, Mua Là Phê🔥")
     await bot.change_presence(activity=activity)
 
     print(f'Bot is ready: {bot.user}')
