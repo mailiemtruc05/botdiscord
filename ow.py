@@ -3,6 +3,7 @@ import asyncio
 import os
 import random
 import re
+from dotenv import load_dotenv
 from discord.ext import commands
 from datetime import datetime, timedelta
 from discord.ui import View, Button
@@ -11,6 +12,7 @@ from threading import Thread
 from discord.ui import View, Select
 from datetime import datetime, timedelta, timezone
 
+load_dotenv()  # Đọc file .env
 intents = discord.Intents.default()
 intents.message_content = True
 intents.guilds = True
