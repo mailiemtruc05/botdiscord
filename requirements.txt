@@ -1,4 +1,4 @@
 discord.py
 asyncio
 Flask==2.3.3
-
+python-dotenv
